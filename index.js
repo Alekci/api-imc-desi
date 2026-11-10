@@ -1,16 +1,10 @@
 const express = require('express');
 const db = require('./db');
-<<<<<<< HEAD
 const app = express()
 const calcularIMC = require('./imc')
 const port = 3000
 const converterTemperatura = require('./conversor')
 app.use(express.json())
-=======
-const app = express();
-const port = 3000;
-const calcularDolar = require('./conversor')
->>>>>>> 8170ae3fb144b6d46f0995b3aada3528e708551b
 
 // Middleware para interpretar requisições em formato JSON
 app.use(express.json());
@@ -64,7 +58,6 @@ app.post('/medicao', async (req, res) => {
   } catch (error) {
     res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
-<<<<<<< HEAD
 });
 
 app.put('/paciente/:id', async (req, res) => {
@@ -103,38 +96,6 @@ app.put('/paciente/:id', async (req, res) => {
     res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
 });
-=======
-
-});
-app.post('/converter', async (req, res) => {
-  const { valorReal, cotacao, descricao } = req.body;
-
-  if (!descricao || !valorReal || !cotacao) {
-    return res.status(400).json({ mensagem: "Verifique se todos os campos estão preenchidos" });
-  }
-  const { dolar } = calcularDolar(Number(valorReal), Number(cotacao));
-
-  try {
-    const [rows] = await db.execute('INSERT INTO `conversoes` (descricao, valorReal, cotacao, valorDolar) VALUES (?, ?, ?, ?)', [descricao, valorReal, cotacao, dolar]);
-
-    res.status(201).json({
-      id: rows.insertId,
-      descricao,
-      valorReal,
-      cotacao,
-      dolar
-    });
-  } catch (error) {
-    res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
-  }
-});
-// -----------------------------------------------------------------------------
-// 5. UPDATE (PUT /paciente/:id) - Atualizar dados do paciente e recalcular IMC
-// -----------------------------------------------------------------------------
-app.put('/paciente/:id', async (req, res) => {
-  const { id } = req.params;
-  const { nome, idade, altura, peso } = req.body;
->>>>>>> 8170ae3fb144b6d46f0995b3aada3528e708551b
 
   // Validação dos campos obrigatórios
   if (!nome || !idade || !altura || !peso) {
@@ -167,8 +128,7 @@ app.put('/paciente/:id', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
-  }
-});
+  };
 
 // -----------------------------------------------------------------------------
 // 6. DELETE (DELETE /paciente/:id) - Remover paciente do banco
@@ -176,11 +136,7 @@ app.put('/paciente/:id', async (req, res) => {
 app.delete('/paciente/:id', async (req, res) => {
   const { id } = req.params;
   try {
-<<<<<<< HEAD
     const [result] = await db.execute('DELETE FROM medicoes WHERE id = ?', [id]);
-=======
-    const [result] = await db.execute('DELETE FROM pacientes WHERE id = ?', [id]);
->>>>>>> 8170ae3fb144b6d46f0995b3aada3528e708551b
     if (result.affectedRows === 0) {
       return res.status(404).json({ mensagem: "Paciente não encontrado" });
     }
@@ -190,12 +146,9 @@ app.delete('/paciente/:id', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 app.listen(port, () => {
   console.log(`Servidor rodando com sucesso em http://localhost:${port}`);
 });
-=======
->>>>>>> 8170ae3fb144b6d46f0995b3aada3528e708551b
 app.listen(port, () => {
   console.log(`Servidor rodando com sucesso em http://localhost:${port}`);
 });

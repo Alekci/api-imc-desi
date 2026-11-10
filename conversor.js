@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 function converterTemperatura(valorOriginal) {
     const valorConvertido = (valorOriginal * 9 / 5) + 32
     let classificacao = "";
@@ -15,10 +14,3 @@ function converterTemperatura(valorOriginal) {
     return { valorConvertido: parseFloat(valorConvertido.toFixed(2)), classificacao };
 }
 module.exports = converterTemperatura
-=======
-function calcularDolar(valorReal, cotacao) {
-    const dolar = valorReal / cotacao;
-    return {dolar: parseFloat(dolar.toFixed(2)) };
-}
-module.exports = calcularDolar;
->>>>>>> 8170ae3fb144b6d46f0995b3aada3528e708551b
