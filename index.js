@@ -1,17 +1,18 @@
 const express = require('express');
 const db = require('./db');
-const app = express()
-const calcularIMC = require('./imc')
-const port = 3000
-const converterTemperatura = require('./conversor')
-app.use(express.json())
+const calcularIMC = require('./imc');
+const converterTemperatura = require('./conversor');
 
-// Middleware para interpretar requisições em formato JSON
+const app = express();
+const port = 3000;
+
+
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.send('API Ativa!!')
-})
+  res.send('API Ativa!!');
+});
+
 app.get('/medicoes', async (req, res) => {
   try {
     const [rows] = await db.execute('SELECT * FROM medicoes');
@@ -35,24 +36,29 @@ app.get('/medicoes/:id', async (req, res) => {
 });
 
 app.post('/medicao', async (req, res) => {
-  const { descricao, tipo = "temperatura", valorOriginal, unidadeOriginal = "Cº", valorConvertido, unidadeConvertida = "Fº" } = req.body;
+  const { descricao, tipo = "temperatura", valor_original, unidade_original = "Cº", unidade_convertida = "Fº" 
+  } = req.body;
 
-  if (!descricao || !valorOriginal) {
+  if (!descricao || valor_original === undefined) {
     return res.status(400).json({ mensagem: "Verifique se todos os campos estão preenchidos" });
   }
-  const { fahrenheit, classificacao } = converterTemperatura(Number(valorOriginal));
+
+  const { valor_convertido, classificacao } = converterTemperatura(Number(valor_original));
 
   try {
-    const [rows] = await db.execute('INSERT INTO `medicoes` (descricao, tipo, valorOriginal, unidadeOriginal, valorConvertido, unidadeConvertida, classificacao) VALUES (?, ?, ?, ?, ?, ?, ?)', [descricao, tipo, valorOriginal, unidadeOriginal, valorConvertido, unidadeConvertida, classificacao]);
+    const [rows] = await db.execute(
+      'INSERT INTO `medicoes` (descricao, tipo, valor_original, unidade_original, valor_convertido, unidade_convertida, classificacao) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+      [descricao, tipo, valor_original, unidade_original, valor_convertido, unidade_convertida, classificacao]
+    );
 
     res.status(201).json({
       id: rows.insertId,
       descricao,
       tipo,
-      valorOriginal: Number(valorOriginal),
-      unidadeOriginal,
-      fahrenheit: Number(fahrenheit),
-      unidadeConvertida,
+      valor_original: Number(valor_original),
+      unidade_original,
+      valor_convertido,
+      unidade_convertida,
       classificacao
     });
   } catch (error) {
@@ -60,95 +66,56 @@ app.post('/medicao', async (req, res) => {
   }
 });
 
-app.put('/paciente/:id', async (req, res) => {
+app.put('/medicao/:id', async (req, res) => {
   const { id } = req.params;
-  const { nome, idade, altura, peso } = req.body;
+  const { descricao, tipo = "temperatura", valor_original, unidade_original = "Cº", unidade_convertida = "Fº" } = req.body;
 
-  // Validação dos campos obrigatórios
-  if (!nome || !idade || !altura || !peso) {
+  if (!descricao || valor_original === undefined) {
     return res.status(400).json({ mensagem: "Verifique se todos os campos estão preenchidos" });
   }
 
-  const { imc, status } = calcularIMC(peso, altura);
+  const { valor_convertido, classificacao } = converterTemperatura(Number(valor_original));
 
   try {
     const query = `
       UPDATE medicoes 
-      SET nome = ?, idade = ?, altura = ?, peso = ?, imc = ?, status = ? 
+      SET descricao = ?, tipo = ?, valor_original = ?, unidade_original = ?, valor_convertido = ?, unidade_convertida = ?, classificacao = ? 
       WHERE id = ?
     `;
-    const [result] = await db.execute(query, [nome, idade, altura, peso, imc, status, id]);
+    const [result] = await db.execute(query, [descricao, tipo, valor_original, unidade_original, valor_convertido, unidade_convertida, classificacao, id]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ mensagem: "Paciente não encontrado para atualização" });
+      return res.status(404).json({ mensagem: "Medição não encontrada para atualização" });
     }
 
     res.status(200).json({
       id: Number(id),
-      nome,
-      idade: Number(idade),
-      altura: Number(altura),
-      peso: Number(peso),
-      imc,
-      status
+      descricao,
+      tipo,
+      valor_original: Number(valor_original),
+      unidade_original,
+      valor_convertido,
+      unidade_convertida,
+      classificacao
     });
   } catch (error) {
     res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
 });
 
-  // Validação dos campos obrigatórios
-  if (!nome || !idade || !altura || !peso) {
-    return res.status(400).json({ mensagem: "Verifique se todos os campos estão preenchidos" });
-  }
-
-  // Recálculo obrigatório do IMC e status com base nos novos valores
-  const { imc, status } = calcularIMC(peso, altura);
-
-  try {
-    const query = `
-      UPDATE pacientes 
-      SET nome = ?, idade = ?, altura = ?, peso = ?, imc = ?, status = ? 
-      WHERE id = ?
-    `;
-    const [result] = await db.execute(query, [nome, idade, altura, peso, imc, status, id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ mensagem: "Paciente não encontrado para atualização" });
-    }
-
-    res.status(200).json({
-      id: Number(id),
-      nome,
-      idade: Number(idade),
-      altura: Number(altura),
-      peso: Number(peso),
-      imc,
-      status
-    });
-  } catch (error) {
-    res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
-  };
-
-// -----------------------------------------------------------------------------
-// 6. DELETE (DELETE /paciente/:id) - Remover paciente do banco
-// -----------------------------------------------------------------------------
-app.delete('/paciente/:id', async (req, res) => {
+app.delete('/medicao/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await db.execute('DELETE FROM medicoes WHERE id = ?', [id]);
     if (result.affectedRows === 0) {
-      return res.status(404).json({ mensagem: "Paciente não encontrado" });
+      return res.status(404).json({ mensagem: "Medição não encontrada" });
     }
-    res.status(200).json({ mensagem: "Paciente apagado com sucesso" });
+    res.status(200).json({ mensagem: "Medição apagada com sucesso" });
   } catch (error) {
     res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Servidor rodando com sucesso em http://localhost:${port}`);
-});
 app.listen(port, () => {
   console.log(`Servidor rodando com sucesso em http://localhost:${port}`);
 });
