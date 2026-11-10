@@ -3,122 +3,114 @@ const db = require('./db');
 const app = express()
 const calcularIMC = require('./imc')
 const port = 3000
+const converterTemperatura = require('./conversor')
 app.use(express.json())
 
 
 app.get('/', (req, res) => {
-  res.send('Hello World!')
+  res.send('API Ativa!!')
 })
-app.get('/paciente', async (req, res) => {
+app.get('/medicoes', async (req, res) => {
   try {
-    const [rows] = await db.execute('select * from pacientes');
+    const [rows] = await db.execute('SELECT * FROM medicoes');
     res.status(200).json(rows);
   } catch (error) {
-    res.status(500).json({
-      mensagem: "Erro Interno do Servidor",
-      detalhes: error.message
-    });
+    res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
-})
-app.get('/paciente/obesidade', async (req, res) => {
-  try {
-    const [rows] = await db.execute('SELECT * FROM pacientes WHERE status = "Obesidade";');
-    res.status(200).json(rows);
-  } catch (error) {
-    res.status(500).json({
-      mensagem: "Erro Interno do Servidor",
-      detalhes: error.message
-    });
-  }
-})
-app.get('/paciente/:id', async (req, res) => {
-  const { id } = req.params;
+});
 
+app.get('/medicoes/:id', async (req, res) => {
+  const { id } = req.params;
   try {
-    const [rows] = await db.execute('select * from pacientes where id=?', [id]);
+    const [rows] = await db.execute('SELECT * FROM medicoes WHERE id = ?', [id]);
     if (rows.length === 0) {
-      return res.status(404).json({
-        mensagem: "Paciente não encontrado",
-        detalhes: error.message
-      });
+      return res.status(404).json({ mensagem: "Medição não encontrada" });
     }
     res.status(200).json(rows[0]);
   } catch (error) {
-    res.status(500).json({
-      mensagem: "Erro Interno do Servidor",
-      detalhes: error.message
-    });
+    res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
-})
+});
 
-app.post('/paciente',async(req,res)=>{
-  const {nome,idade,altura,peso}=req.body;
-  if(!nome||!idade||!altura||!peso){
-      return res.status(400).json({
-        mensagem: "Verifique se todos os campos estão preenchidos",
-        detalhes: error.message
-      });
+app.post('/medicao', async (req, res) => {
+  const { descricao, tipo = "temperatura", valorOriginal, unidadeOriginal = "Cº", valorConvertido, unidadeConvertida = "Fº" } = req.body;
+
+  if (!descricao || !valorOriginal) {
+    return res.status(400).json({ mensagem: "Verifique se todos os campos estão preenchidos" });
   }
-  const {imc,status}=calcularIMC(Number(peso),Number(altura));
+  const { fahrenheit, classificacao } = converterTemperatura(Number(valorOriginal));
+
   try {
-      const [rows] = await db.execute('INSERT INTO `pacientes` (`nome`, `idade`, `altura`, `peso`, `imc`, `status`) VALUES (?,?,?,?,?,?);', [nome,idade,altura,peso,imc,status]);
-      res.status(201).json({
-        id:rows.insertId,
-        nome,
-        idade,
-        altura,
-        peso,
-        imc,
-        status
-      });
-  } catch (error) {
-    res.status(500).json({
-      mensagem: "Erro Interno do Servidor",
-      detalhes: error.message
+    const [rows] = await db.execute('INSERT INTO `medicoes` (descricao, tipo, valorOriginal, unidadeOriginal, valorConvertido, unidadeConvertida, classificacao) VALUES (?, ?, ?, ?, ?, ?, ?)', [descricao, tipo, valorOriginal, unidadeOriginal, valorConvertido, unidadeConvertida, classificacao]);
+
+    res.status(201).json({
+      id: rows.insertId,
+      descricao,
+      tipo,
+      valorOriginal: Number(valorOriginal),
+      unidadeOriginal,
+      fahrenheit: Number(fahrenheit),
+      unidadeConvertida,
+      classificacao
     });
+  } catch (error) {
+    res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
-})
-app.put('/paciente/:id',async(req,res)=>{
+});
+
+app.put('/paciente/:id', async (req, res) => {
   const { id } = req.params;
-  const {nome,idade,altura,peso}=req.body;
-  if(!nome||!idade||!altura||!peso||!id){
-      return res.status(400).json({
-        mensagem: "Verifique se todos os campos estão preenchidos",
-        detalhes: error.message
-      });
+  const { nome, idade, altura, peso } = req.body;
+
+  // Validação dos campos obrigatórios
+  if (!nome || !idade || !altura || !peso) {
+    return res.status(400).json({ mensagem: "Verifique se todos os campos estão preenchidos" });
   }
-  const {imc,status}=calcularIMC(Number(peso),Number(altura));
+
+  const { imc, status } = calcularIMC(peso, altura);
+
   try {
-      const [rows] = await db.execute('UPDATE `pacientes` SET `nome` = ?, `idade` = ?, `altura` = ?, `peso` = ?, `imc` = ?, `status` = ? WHERE `pacientes`.`id` = ?;', [nome,idade,altura,peso,imc,status,id]);
-      res.status(200).json({mensagem:"Paciente atualizado com sucesso."  
-      });
-  } catch (error) {
-    res.status(500).json({
-      mensagem: "Erro Interno do Servidor",
-      detalhes: error.message
+    const query = `
+      UPDATE medicoes 
+      SET nome = ?, idade = ?, altura = ?, peso = ?, imc = ?, status = ? 
+      WHERE id = ?
+    `;
+    const [result] = await db.execute(query, [nome, idade, altura, peso, imc, status, id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensagem: "Paciente não encontrado para atualização" });
+    }
+
+    res.status(200).json({
+      id: Number(id),
+      nome,
+      idade: Number(idade),
+      altura: Number(altura),
+      peso: Number(peso),
+      imc,
+      status
     });
+  } catch (error) {
+    res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
-})
+});
 
 app.delete('/paciente/:id', async (req, res) => {
   const { id } = req.params;
-
   try {
-    const [rows] = await db.execute('delete from pacientes where id=?', [id]);
-    if (rows.affectedRows === 0) {
-      return res.status(404).json({
-        mensagem: "Paciente não encontrado",
-        detalhes: error.message
-      });
+    const [result] = await db.execute('DELETE FROM medicoes WHERE id = ?', [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensagem: "Paciente não encontrado" });
     }
-    res.status(200).json({mensagem:"Paciente apagado com sucesso"});
+    res.status(200).json({ mensagem: "Paciente apagado com sucesso" });
   } catch (error) {
-    res.status(500).json({
-      mensagem: "Erro Interno do Servidor",
-      detalhes: error.message
-    });
+    res.status(500).json({ mensagem: "Erro interno do servidor", detalhes: error.message });
   }
-})
+});
+
+app.listen(port, () => {
+  console.log(`Servidor rodando com sucesso em http://localhost:${port}`);
+});
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
